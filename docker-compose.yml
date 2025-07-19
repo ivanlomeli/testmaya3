@@ -1,0 +1,34 @@
+# docker-compose.yml (Versión para la COPIA)
+services:
+  postgres:
+    image: postgres:13
+    container_name: maya_postgres_db_copia
+    environment:
+      POSTGRES_USER: mayadmin
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: mayadigital_copia # Usamos un nuevo nombre de BD
+    ports:
+      # --- CAMBIO MÁS IMPORTANTE ---
+      # Exponemos la base de datos en el puerto 5434 de tu Mac
+      - "5434:5432"
+    volumes:
+      # Docker creará un nuevo volumen automáticamente
+      - postgres_data_copia:/var/lib/postgresql/data
+    restart: unless-stopped
+  
+  mongo:
+    image: mongo:5.0
+    container_name: maya_mongo_db_copia
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongoadmin
+      MONGO_INITDB_ROOT_PASSWORD: mysecretpassword
+    ports:
+      # Exponemos MongoDB en el puerto 27018 de tu Mac
+      - "27018:27017"
+    volumes:
+      - mongo_data_copia:/data/db
+    restart: unless-stopped
+
+volumes:
+  postgres_data_copia:
+  mongo_data_copia:

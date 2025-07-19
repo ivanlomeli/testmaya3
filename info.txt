@@ -1,0 +1,52 @@
+=== PROYECTO MAYA DIGITAL ===
+Package.json:
+
+=== Estructura ===
+.
+├── analysis_output.txt
+├── backend
+│   ├── Cargo.lock
+│   ├── Cargo.toml
+│   ├── migrations
+│   ├── seed.sql
+│   ├── src
+│   └── target
+├── docker-compose.yml
+├── frontend
+│   ├── README.md
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── postcss.config.js
+│   ├── public
+│   ├── src
+│   └── tailwind.config.js
+├── info.txt
+└── migrations
+    └── 20250715141205_create_auth_system_complete.sql
+
+9 directories, 12 files
+
+=== Componentes React ===
+
+=== Backend/API ===
+./frontend/node_modules/css-loader/dist/runtime/api.js
+./frontend/node_modules/lodash/fp/capitalize.js
+./frontend/node_modules/lodash/capitalize.js
+./frontend/node_modules/http-deceiver/test/api-test.js
+./frontend/node_modules/@dimforge/rapier3d-compat/rapier.cjs.js
+./frontend/node_modules/@dimforge/rapier3d-compat/rapier_wasm3d.js
+./frontend/node_modules/@dimforge/rapier3d-compat/rapier.es.js
+./frontend/node_modules/postcss-load-config/node_modules/yaml/dist/public-api.js
+./frontend/node_modules/postcss-load-config/node_modules/yaml/browser/dist/public-api.js
+./frontend/node_modules/handle-thing/test/api-test.js
+
+=== Base de datos ===
+./migrations/20250715141205_create_auth_system_complete.sql
+./backend/migrations/migrations/20250715150000_create_bookings_table.sql
+./backend/migrations/20250715134134_fix_enum_types_properly.sql
+./backend/migrations/20250703105003_create_initial_tables.sql
+./backend/migrations/20250715160000_add_ical_uuid.sql
+./backend/migrations/20250715131209_create_hotels_table.sql
+./backend/migrations/20250715150000_create_bookings_table.sql
+./backend/migrations/20250715131035_create_users_table.sql
+./backend/seed.sql

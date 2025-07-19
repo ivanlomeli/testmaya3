@@ -1,0 +1,17 @@
+# Archivos de entorno (Contiene secretos!)
+.env
+
+# Dependencias de Node.js
+/frontend/node_modules/
+/frontend/build/
+npm-debug.log
+yarn-error.log
+
+# Archivos de compilación de Rust
+/backend/target/
+Cargo.lock
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+

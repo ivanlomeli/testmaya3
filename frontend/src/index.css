@@ -1,0 +1,73 @@
+/* frontend/src/index.css */
+
+/* 1. Directivas de Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 2. Definición de Variables Globales con tu Identidad Corporativa */
+@layer base {
+  :root {
+    /* Colores Primarios de tu Marca */
+    --theme-primary: #42beab;   /* Pantone 3258 U (Verde Jade) */
+    --theme-secondary: #e81f76;  /* Pantone 213 C (Rosa Mexicano) */
+
+    /* Colores Secundarios y de Soporte */
+    --theme-gold: #d6a031;      /* Pantone 124 U */
+    --theme-gray: #a3a5a8;      /* Pantone Cool Gray 6 U */
+
+    /* Colores base de la UI */
+    --theme-dark: #1a202c;
+    --theme-light: #f7fafc;
+  }
+
+  /* --- FONDO CON TEXTURA APLICADO AQUÍ --- */
+  body {
+    margin: 0;
+    overflow-x: hidden;
+    font-family: 'Montserrat', sans-serif;
+    
+    background-color: #f7fafc; /* Color de fondo si la imagen no carga */
+    background-image: url("https://www.transparenttextures.com/patterns/subtle-carbon.png");
+    background-attachment: fixed; /* Mantiene la textura fija al hacer scroll */
+  }
+}
+
+/* 3. Estilos Personalizados que usan las Variables */
+.card { 
+    transition: transform 0.3s ease-out, box-shadow 0.3s ease-out; 
+}
+.card:hover { 
+    transform: translateY(-10px); 
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); 
+}
+.btn-primary { 
+    background-color: var(--theme-primary); 
+    color: white; 
+    transition: background-color 0.3s, transform 0.3s; 
+}
+.btn-primary:hover { 
+    background-color: #3aa59b; /* Un tono ligeramente más oscuro del primario */
+    transform: scale(1.05); 
+}
+.btn-secondary { 
+    background: var(--theme-secondary); 
+    color: white; 
+    transition: all 0.3s; 
+}
+.btn-secondary:hover { 
+    transform: scale(1.05); 
+    box-shadow: 0 8px 15px rgba(232, 31, 118, 0.3); 
+}
+
+/* --- REGLA GLOBAL PARA FORZAR LA ELIMINACIÓN DEL OUTLINE --- */
+/* Esta regla se aplica a todos los inputs cuando reciben foco 
+  y usa !important para tener la máxima prioridad.
+*/
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}

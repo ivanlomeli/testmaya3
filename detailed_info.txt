@@ -1,0 +1,203 @@
+=== FRONTEND INFO ===
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@react-three/drei": "^10.4.2",
+    "@react-three/fiber": "^9.1.4",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "fuse.js": "^7.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.3",
+    "react-scripts": "5.0.1",
+    "three": "^0.178.0",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17"
+  }
+}
+
+=== BACKEND RUST INFO ===
+[package]
+name = "backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-cors = "0.7.0"
+actix-multipart = "0.6.1"
+actix-web = "4.5.1"
+bcrypt = "0.15.1"                # ← NUEVO: Para passwords
+chrono = { version = "0.4.31", features = ["serde"] }
+dotenv = "0.15.0"
+futures-util = "0.3.28"
+jsonwebtoken = "8.3.0"          # Ya lo tienes, perfecto
+mongodb = { version = "2.8.0", features = ["bson-chrono-0_4"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.7.3", features = [ "runtime-tokio-rustls", "postgres", "macros", "chrono", "json", "uuid", "bigdecimal" ] }
+bigdecimal = { version = "0.3", features = ["serde"] }
+tokio = { version = "1.0", features = ["full"] }        # ← NUEVO: Runtime async
+uuid = { version = "1.0", features = ["v4", "serde"] }  # ← NUEVO: IDs únicos
+validator = { version = "0.16", features = ["derive"] } # ← NUEVO: Validación
+env_logger = "0.10"
+=== COMPONENTES REACT ===
+frontend/src/reportWebVitals.js
+frontend/src/index.js
+frontend/src/components/TourBookingForm.js
+frontend/src/components/CartModal.js
+frontend/src/components/TransporteModal.js
+frontend/src/components/RegistrationModal.js
+frontend/src/components/HotelBookingForm.js
+frontend/src/components/Header.js
+frontend/src/components/RestaurantMenu.js
+frontend/src/components/CaballosBookingForm.js
+frontend/src/components/PredictiveSearch.js
+frontend/src/components/ProductDetailModal.js
+frontend/src/components/IntroAnimation.js
+frontend/src/components/Modal.js
+frontend/src/components/CenoteBookingForm.js
+frontend/src/App.test.js
+frontend/src/setupTests.js
+frontend/src/pages/ArtesanosPage.js
+frontend/src/pages/ExperienciasPage.js
+frontend/src/pages/HotelesPage.js
+
+=== ESTRUCTURA FRONTEND ===
+frontend/src
+├── App.js
+├── App.test.js
+├── assets
+│   ├── Imagotipo-Maya-Digital-2022.png
+│   ├── aretes-1.jpg
+│   ├── hero-background.jpg
+│   ├── huipil-1.jpg
+│   ├── huipil-2.jpg
+│   ├── huipil-3.jpg
+│   ├── vasija-1.jpg
+│   └── vasija-2.jpg
+├── components
+│   ├── CaballosBookingForm.js
+│   ├── CartModal.js
+│   ├── CenoteBookingForm.js
+│   ├── Header.js
+│   ├── HotelBookingForm.js
+│   ├── IntroAnimation.js
+│   ├── Modal.js
+│   ├── PredictiveSearch.js
+│   ├── ProductDetailModal.js
+│   ├── RegistrationModal.js
+│   ├── RestaurantMenu.js
+│   ├── TourBookingForm.js
+│   └── TransporteModal.js
+├── index.css
+├── index.js
+├── logo.svg
+├── pages
+│   ├── ArtesanosPage.js
+│   ├── ExperienciasPage.js
+│   ├── HotelesPage.js
+│   ├── MisReservasPage.js
+│   ├── PortalPage.js
+│   ├── ProductDetailPage.js
+│   ├── RestaurantesPage.js
+│   └── TransportePage.js
+├── reportWebVitals.js
+└── setupTests.js
+
+4 directories, 36 files
+
+=== ESTRUCTURA BACKEND ===
+backend/src
+├── handlers
+│   ├── admin.rs
+│   ├── auth.rs
+│   ├── booking.rs
+│   ├── hotel.rs
+│   └── mod.rs
+├── main.rs
+├── middleware
+│   ├── auth.rs
+│   └── mod.rs
+├── models
+│   ├── booking.rs
+│   ├── hotel.rs
+│   ├── mod.rs
+│   └── user.rs
+├── page
+│   ├── ExperienciasPage.js
+│   ├── HotelesPage.js
+│   └── RestaurantesPage.js
+└── utils
+    ├── jwt.rs
+    └── mod.rs
+
+6 directories, 17 files
+
+=== DOCKER COMPOSE ===
+# docker-compose.yml (Versión para la COPIA)
+services:
+  postgres:
+    image: postgres:13
+    container_name: maya_postgres_db_copia
+    environment:
+      POSTGRES_USER: mayadmin
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: mayadigital_copia # Usamos un nuevo nombre de BD
+    ports:
+      # --- CAMBIO MÁS IMPORTANTE ---
+      # Exponemos la base de datos en el puerto 5434 de tu Mac
+      - "5434:5432"
+    volumes:
+      # Docker creará un nuevo volumen automáticamente
+      - postgres_data_copia:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:5.0
+    container_name: maya_mongo_db_copia
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongoadmin
+      MONGO_INITDB_ROOT_PASSWORD: mysecretpassword
+    ports:
+      # Exponemos MongoDB en el puerto 27018 de tu Mac
+      - "27018:27017"
+    volumes:
+      - mongo_data_copia:/data/db
+    restart: unless-stopped
+
+volumes:
+  postgres_data_copia:
+  mongo_data_copia:
