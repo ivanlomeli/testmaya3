@@ -35,7 +35,7 @@ function PortalPage() {
         setError(null);
         try {
             const token = localStorage.getItem('auth_token');
-            const response = await fetch('http://127.0.0.1:8080/api/hotels/my-hotels', {
+            const response = await fetch('/api/hotels/my-hotels', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 

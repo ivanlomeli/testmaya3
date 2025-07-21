@@ -5,7 +5,7 @@ export default function RestaurantesPage({ onMenuClick }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        fetch('http://127.0.0.1:8080/api/restaurantes')
+        fetch('/api/restaurantes')
             .then(res => res.json())
             .then(data => {
                 setRestaurantes(data);

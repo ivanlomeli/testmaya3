@@ -20,7 +20,7 @@ export default function MisReservasPage() {
                 return;
             }
 
-            const response = await fetch('http://127.0.0.1:8080/api/bookings/my-bookings', {
+            const response = await fetch('/api/bookings/my-bookings', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

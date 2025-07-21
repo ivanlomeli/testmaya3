@@ -5,7 +5,7 @@ export default function ExperienciasPage({ onExperienceClick }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        fetch('http://127.0.0.1:8080/api/experiencias')
+        fetch('/api/experiencias')
             .then(res => res.json())
             .then(data => {
                 setExperiencias(data);
