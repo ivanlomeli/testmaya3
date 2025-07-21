@@ -9,6 +9,8 @@ export default function HotelesPage({ onReserveClick }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        // --- ESTA LÍNEA YA ESTÁ CORRECTA ---
+        // Utiliza la ruta relativa para que funcione en el servidor.
         fetch('/api/hoteles')
             .then(response => response.json())
             .then(data => {
@@ -35,8 +37,6 @@ export default function HotelesPage({ onReserveClick }) {
                     <h1 className="text-5xl md:text-7xl font-extrabold mb-4 drop-shadow-lg">Descubre el Alma del Mundo Maya</h1>
                     <p className="text-xl md:text-2xl mb-8 drop-shadow-md">Tu viaje comienza aquí. Reserva, explora y vive experiencias únicas.</p>
                     
-                    {/* --- AQUÍ ESTÁ LA CORRECCIÓN FINAL --- */}
-                    {/* Se renderiza el componente de búsqueda en lugar del formulario estático */}
                     <PredictiveSearch />
 
                 </div>
