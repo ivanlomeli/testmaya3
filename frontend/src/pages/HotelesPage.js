@@ -9,7 +9,7 @@ export default function HotelesPage({ onReserveClick }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        fetch('http://127.0.0.1:8080/api/hoteles')
+        fetch('/api/hoteles')
             .then(response => response.json())
             .then(data => {
                 setHoteles(data);

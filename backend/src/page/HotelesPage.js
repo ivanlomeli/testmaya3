@@ -8,7 +8,7 @@ export default function HotelesPage({ onReserveClick }) {
 
     useEffect(() => {
         // Hacemos la llamada a nuestro backend de Rust
-        fetch('http://127.0.0.1:8080/api/hoteles')
+        fetch('/api/hoteles')
             .then(response => response.json())
             .then(data => {
                 setHoteles(data);
