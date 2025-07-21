@@ -32,7 +32,10 @@ export default function RegistrationModal({ onRegister, onLogin }) {
                 ? { email: formData.email, password: formData.password }
                 : { ...formData, role: 'Customer' };
 
-            const response = await fetch(`http://127.0.0.1:8080${endpoint}`, {
+            // --- CAMBIO PRINCIPAL AQUÍ ---
+            // Se eliminó 'http://127.0.0.1:8080' para usar una ruta relativa.
+            // Ahora Nginx redirigirá la llamada correctamente en el servidor.
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
