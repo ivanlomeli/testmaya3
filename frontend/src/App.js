@@ -1,4 +1,4 @@
-// frontend/src/App.js - VERSIÓN CORREGIDA CON RUTA DE EDICIÓN
+// frontend/src/App.js - VERSIÓN ACTUALIZADA CON RUTAS DE REGISTRO DE HOTELES
 
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
@@ -25,8 +25,14 @@ import TransportePage from './pages/TransportePage';
 import MisReservasPage from './pages/MisReservasPage';
 import PortalPage from './pages/PortalPage';
 import AdminPage from './pages/AdminPage';
-import CreateHotelPage from './pages/CreateHotelPage'; // <-- esto es para el formulario para agegar hoteles 
-import EditHotelPage from './pages/EditHotelPage'; // <-- NUEVO IMPORT para la edicion de los hoteles que los dueños agregan 
+import CreateHotelPage from './pages/CreateHotelPage';
+import EditHotelPage from './pages/EditHotelPage';
+
+// NUEVAS IMPORTACIONES PARA EL SISTEMA DE REGISTRO DE HOTELES Y RESTAURANTES
+import HotelLandingPage from './pages/HotelLandingPage';
+import HotelRegistrationPage from './pages/HotelRegistrationPage';
+import RestaurantLandingPage from './pages/RestaurantLandingPage';
+import RestaurantRegistrationPage from './pages/RestaurantRegistrationPage';
 
 function App() {
     const [introComplete, setIntroComplete] = useState(false);
@@ -36,7 +42,7 @@ function App() {
     const [userData, setUserData] = useState(null);
     const [pendingAction, setPendingAction] = useState(null);
 
-    // ✅ VERIFICAR AUTENTICACIÓN AL CARGAR LA APP - CORREGIDO
+    // ✅ VERIFICAR AUTENTICACIÓN AL CARGAR LA APP
     useEffect(() => {
         try {
             const token = localStorage.getItem('auth_token');
@@ -175,6 +181,7 @@ function App() {
 
             <main>
                 <Routes>
+                    {/* Rutas principales existentes */}
                     <Route path="/" element={<HotelesPage onReserveClick={(data) => openModal('hotel', data)} />} />
                     <Route path="/restaurantes" element={<RestaurantesPage onMenuClick={(data) => openModal('restaurant', data)} />} />
                     <Route path="/experiencias" element={<ExperienciasPage onExperienceClick={(data) => openModal('experience', data)} />} />
@@ -182,10 +189,18 @@ function App() {
                     <Route path="/artesanos/:productId" element={<ProductDetailPage onAddToCart={handleAddToCart}/>} />
                     <Route path="/transporte" element={<TransportePage onSolicitarClick={() => openModal('transporte')} />} />
                     <Route path="/mis-reservas" element={<MisReservasPage />} />
+                    
+                    {/* Rutas del portal existentes */}
                     <Route path="/portal" element={<PortalPage userData={userData} isLoggedIn={isLoggedIn} />} />
                     <Route path="/portal/nuevo-hotel" element={<CreateHotelPage />} />
-                    <Route path="/portal/editar-hotel/:hotelId" element={<EditHotelPage />} /> {/* <-- NUEVA RUTA PARA EDITAR HOTELES */}
+                    <Route path="/portal/editar-hotel/:hotelId" element={<EditHotelPage />} />
                     <Route path="/admin" element={<AdminPage />} />
+
+                    {/* ✨ NUEVAS RUTAS PARA EL SISTEMA DE REGISTRO DE HOTELES Y RESTAURANTES */}
+                    <Route path="/hoteles-unete" element={<HotelLandingPage />} />
+                    <Route path="/registro-hotel" element={<HotelRegistrationPage />} />
+                    <Route path="/restaurantes-unete" element={<RestaurantLandingPage />} />
+                    <Route path="/registro-restaurante" element={<RestaurantRegistrationPage />} />
                 </Routes>
             </main>
 
@@ -205,14 +220,20 @@ function App() {
                                 <li><Link to="/artesanos" className="hover:text-white">Artesanos</Link></li>
                             </ul>
                         </div>
+                        {/* ✨ NUEVA SECCIÓN PARA HOTELES Y RESTAURANTES */}
+                        <div>
+                            <h4 className="font-bold mb-4">Para Negocios</h4>
+                            <ul className="space-y-2 text-gray-300">
+                                <li><Link to="/hoteles-unete" className="hover:text-white">Registrar Hotel</Link></li>
+                                <li><Link to="/restaurantes-unete" className="hover:text-white">Registrar Restaurante</Link></li>
+                                <li><a href="mailto:partners@mayadigital.com" className="hover:text-white">Contacto Partners</a></li>
+                            </ul>
+                        </div>
                         <div>
                             <h4 className="font-bold mb-4">Contacto</h4>
                             <p className="text-gray-300">Email: info@mayadigital.com</p>
                             <p className="text-gray-300">Teléfono: +52 999 123 4567</p>
-                        </div>
-                        <div>
-                            <h4 className="font-bold mb-4">Síguenos</h4>
-                            <div className="flex space-x-4">
+                            <div className="flex space-x-4 mt-4">
                                 <a href="#" className="text-gray-300 hover:text-white">Facebook</a>
                                 <a href="#" className="text-gray-300 hover:text-white">Instagram</a>
                                 <a href="#" className="text-gray-300 hover:text-white">Twitter</a>

@@ -15,10 +15,13 @@ use handlers::{
     create_booking, get_my_bookings, cancel_booking,
     get_admin_metrics, get_admin_businesses, get_admin_bookings, get_search_analytics,
     get_hotel_bookings,
-    get_all_approved_hotels // <-- 1. SE IMPORTA LA NUEVA FUNCIÓN
+    get_all_approved_hotels,
+    // Handlers para negocios
+    create_business, get_my_businesses, get_business_detail, 
+    update_business, delete_business,
+    // 🔥 NUEVOS HANDLERS PARA ADMINISTRADOR DE NEGOCIOS
+    get_pending_businesses, approve_business, reject_business
 };
-
-// 2. LA FUNCIÓN "get_hoteles" CON DATOS ESTÁTICOS SE ELIMINA POR COMPLETO DE AQUÍ
 
 #[get("/api/restaurantes")]
 async fn get_restaurantes() -> impl Responder {
@@ -147,7 +150,8 @@ async fn health() -> impl Responder {
         "message": "🚀 Servidor de Maya Digital funcionando correctamente",
         "database": "connected",
         "auth": "enabled",
-        "bookings": "available"
+        "bookings": "available",
+        "businesses": "available"
     }))
 }
 
@@ -171,6 +175,7 @@ async fn main() -> std::io::Result<()> {
     println!("📊 Base de datos PostgreSQL conectada");
     println!("🔐 Sistema de autenticación habilitado");
     println!("📋 Sistema de reservas disponible");
+    println!("🏢 Sistema de registro de negocios disponible");
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -189,7 +194,7 @@ async fn main() -> std::io::Result<()> {
             .route("/api/auth/login", web::post().to(login))
             .route("/api/auth/me", web::get().to(me))
             
-            // Rutas de administración (requieren autenticación)
+            // Rutas de administración - HOTELES (requieren autenticación)
             .route("/api/admin/hotels/pending", web::get().to(get_pending_hotels))
             .route("/api/admin/hotels/{id}/approve", web::put().to(approve_hotel))
             .route("/api/admin/hotels/{id}/reject", web::put().to(reject_hotel))
@@ -199,6 +204,11 @@ async fn main() -> std::io::Result<()> {
             .route("/api/admin/businesses", web::get().to(get_admin_businesses))
             .route("/api/admin/bookings", web::get().to(get_admin_bookings))
             .route("/api/admin/search-analytics", web::get().to(get_search_analytics))
+            
+            // 🔥 NUEVAS RUTAS DE ADMINISTRACIÓN - NEGOCIOS (requieren autenticación)
+            .route("/api/admin/businesses/pending", web::get().to(get_pending_businesses))
+            .route("/api/admin/businesses/{id}/approve", web::put().to(approve_business))
+            .route("/api/admin/businesses/{id}/reject", web::put().to(reject_business))
 
             // Rutas para dueños de hoteles (requieren autenticación)
             .route("/api/hotels", web::post().to(create_hotel))
@@ -208,14 +218,20 @@ async fn main() -> std::io::Result<()> {
             .route("/api/hotels/{id}", web::get().to(get_hotel_detail))
             .route("/api/portal/hotels/{hotel_id}/bookings", web::get().to(get_hotel_bookings))
             
-            // Rutas de reservas
+            // 🔥 RUTAS PARA NEGOCIOS/RESTAURANTES (requieren autenticación)
+            .route("/api/businesses", web::post().to(create_business))
+            .route("/api/businesses/my-businesses", web::get().to(get_my_businesses))
+            .route("/api/businesses/{id}", web::get().to(get_business_detail))
+            .route("/api/businesses/{id}", web::put().to(update_business))
+            .route("/api/businesses/{id}", web::delete().to(delete_business))
+            
+            // Rutas de reservas (requieren autenticación)
             .route("/api/bookings", web::post().to(create_booking))
             .route("/api/bookings/my-bookings", web::get().to(get_my_bookings))
             .route("/api/bookings/{id}/cancel", web::put().to(cancel_booking))
 
-            // Rutas existentes (compatibilidad)
+            // Rutas públicas existentes (compatibilidad)
             .service(health)
-            // 3. SE REEMPLAZA EL SERVICIO DE EJEMPLO POR LA RUTA QUE CONSULTA LA BD
             .route("/api/hoteles", web::get().to(get_all_approved_hotels))
             .service(get_restaurantes)
             .service(get_experiencias)

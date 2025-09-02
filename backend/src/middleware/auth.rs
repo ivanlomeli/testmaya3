@@ -1,6 +1,7 @@
 use actix_web::{Error, FromRequest, HttpRequest};
 use actix_web::error::ErrorUnauthorized;
 use futures_util::future::{ok, err, Ready};
+use sqlx::PgPool;
 
 use crate::models::{UserInfo, UserRole};
 use crate::utils::verify_jwt;
@@ -18,25 +19,43 @@ impl FromRequest for UserInfo {
                     let token = &auth_str[7..]; // Remove "Bearer " prefix
                     
                     // Use your existing verify_jwt function
-                    if let Ok(claims) = verify_jwt(token) {
-                        // Convert role string to UserRole
-                        let role = match claims.role.as_str() {
-                            "admin" => UserRole::Admin,
-                            "hotel_owner" => UserRole::HotelOwner,
-                            "customer" => UserRole::Customer,
-                            _ => UserRole::Customer,
-                        };
-                        
-                        let user_info = UserInfo {
-                            id: claims.sub.parse().unwrap_or(0),
-                            email: claims.email,
-                            role,
-                            first_name: "".to_string(), // We don't store this in JWT
-                            last_name: "".to_string(),  // We don't store this in JWT
-                            phone: None,
-                        };
-                        
-                        return ok(user_info);
+                    match verify_jwt(token) {
+                        Ok(claims) => {
+                            // Convert role string to UserRole
+                            let role = match claims.role.as_str() {
+                                "admin" => UserRole::Admin,
+                                "hotel_owner" => UserRole::HotelOwner,
+                                "business_owner" => UserRole::BusinessOwner,
+                                "customer" => UserRole::Customer,
+                                _ => UserRole::Customer,
+                            };
+                            
+                            // Parse user ID from claims
+                            let user_id = match claims.sub.parse::<i32>() {
+                                Ok(id) => id,
+                                Err(e) => {
+                                    eprintln!("Error parsing user ID from token: {}", e);
+                                    return err(ErrorUnauthorized("Invalid user ID in token"));
+                                }
+                            };
+                            
+                            // 🔥 SOLUCIÓN: Obtener datos completos del usuario desde la BD
+                            // Por ahora, usar los datos básicos del token
+                            let user_info = UserInfo {
+                                id: user_id,
+                                email: claims.email,
+                                role,
+                                first_name: "Usuario".to_string(), // Valor por defecto temporal
+                                last_name: "".to_string(),        // Valor por defecto temporal
+                                phone: None,
+                            };
+                            
+                            return ok(user_info);
+                        }
+                        Err(e) => {
+                            eprintln!("JWT verification failed: {}", e);
+                            return err(ErrorUnauthorized("Invalid JWT token"));
+                        }
                     }
                 }
             }
@@ -51,6 +70,7 @@ pub fn require_role(required_role: &str) -> impl Fn(&UserInfo) -> bool + '_ {
         match (&user.role, required_role) {
             (UserRole::Admin, _) => true, // Admin can access everything
             (UserRole::HotelOwner, "hotel_owner") => true,
+            (UserRole::BusinessOwner, "business_owner") => true,
             (UserRole::Customer, "customer") => true,
             _ => false,
         }

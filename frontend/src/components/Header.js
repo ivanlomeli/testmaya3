@@ -1,4 +1,4 @@
-// frontend/src/components/Header.js
+// frontend/src/components/Header.js - VERSIÓN ACTUALIZADA
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/Imagotipo-Maya-Digital-2022.png';
@@ -29,7 +29,7 @@ function Header({ cartItemCount, onCartClick, onLoginClick, isLoggedIn, userData
                     </Link>
 
                     {/* Desktop Navigation */}
-                    <nav className="hidden md:flex items-center space-x-8">
+                    <nav className="hidden md:flex items-center space-x-6">
                         <Link 
                             to="/" 
                             className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
@@ -60,6 +60,23 @@ function Header({ cartItemCount, onCartClick, onLoginClick, isLoggedIn, userData
                         >
                             Transporte
                         </Link>
+                        
+                        {/* ✨ NUEVOS ENLACES PARA HOTELES Y RESTAURANTES */}
+                        <div className="h-6 w-px bg-gray-300"></div> {/* Separador visual */}
+                        <div className="flex items-center space-x-2">
+                            <Link 
+                                to="/hoteles-unete" 
+                                className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 py-2 rounded-full font-bold text-sm hover:from-blue-600 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg"
+                            >
+                                🏨 Hoteles
+                            </Link>
+                            <Link 
+                                to="/restaurantes-unete" 
+                                className="bg-gradient-to-r from-red-500 to-orange-600 text-white px-3 py-2 rounded-full font-bold text-sm hover:from-red-600 hover:to-orange-700 transition-all transform hover:scale-105 shadow-lg"
+                            >
+                                🍽️ Restaurantes
+                            </Link>
+                        </div>
                     </nav>
 
                     {/* Right side - Cart and User */}
@@ -108,7 +125,8 @@ function Header({ cartItemCount, onCartClick, onLoginClick, isLoggedIn, userData
                                             <p className="text-sm text-gray-500">{userData.email}</p>
                                             <p className="text-xs text-blue-600 mt-1">
                                                 {userData.role === 'Admin' ? 'Administrador' : 
-                                                 userData.role === 'HotelOwner' ? 'Dueño de Hotel' : 'Cliente'}
+                                                userData.role === 'HotelOwner' ? 'Dueño de Hotel' :
+                                                userData.role === 'BusinessOwner' ? 'Dueño de Restaurante' : 'Cliente'}
                                             </p>
                                         </div>
 
@@ -138,6 +156,23 @@ function Header({ cartItemCount, onCartClick, onLoginClick, isLoggedIn, userData
                                                     Portal de Hoteles
                                                 </Link>
                                             )}
+
+                                            {/* Portal para Business Owners (Restaurantes) */}
+                                            {userData.role === 'BusinessOwner' && (
+                                                <Link
+                                                    to="/portal"
+                                                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                                    onClick={() => setIsUserMenuOpen(false)}
+                                                >
+                                                    <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                    </svg>
+                                                    Portal de Restaurantes
+                                                </Link>
+                                            )}
+
+
+
 
                                             {/* Panel Admin - SOLO para administradores */}
                                             {userData.role === 'Admin' && (
@@ -229,6 +264,24 @@ function Header({ cartItemCount, onCartClick, onLoginClick, isLoggedIn, userData
                             >
                                 Transporte
                             </Link>
+                            
+                            {/* ✨ ENLACES PARA HOTELES Y RESTAURANTES EN MÓVIL */}
+                            <div className="pt-3 border-t border-gray-200 space-y-3">
+                                <Link 
+                                    to="/hoteles-unete" 
+                                    className="block bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-3 rounded-lg font-bold text-center hover:from-blue-600 hover:to-indigo-700 transition-all"
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    🏨 Registrar Hotel
+                                </Link>
+                                <Link 
+                                    to="/restaurantes-unete" 
+                                    className="block bg-gradient-to-r from-red-500 to-orange-600 text-white px-4 py-3 rounded-lg font-bold text-center hover:from-red-600 hover:to-orange-700 transition-all"
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    🍽️ Registrar Restaurante
+                                </Link>
+                            </div>
                             
                             {/* Admin option for mobile */}
                             {isLoggedIn && userData && userData.role === 'Admin' && (

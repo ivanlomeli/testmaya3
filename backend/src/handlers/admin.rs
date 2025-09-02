@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse, Result};
 use sqlx::PgPool;
 use serde_json::json;
-use serde:: Serialize;
+use serde::Serialize;
 use chrono::{DateTime, Utc};
 
 use crate::models::{UserInfo, UserRole};
@@ -50,6 +50,8 @@ pub struct BookingDetail {
     pub created_at: DateTime<Utc>,
     pub booking_reference: String,
 }
+
+// ========== FUNCIONES DE MÉTRICAS Y ESTADÍSTICAS ==========
 
 // Obtener métricas completas del dashboard
 pub async fn get_admin_metrics(
@@ -128,8 +130,8 @@ pub async fn get_admin_metrics(
     Ok(HttpResponse::Ok().json(metrics))
 }
 
-// Obtener lista de todos los negocios
-pub async fn get_admin_businesses(
+// Estadísticas del panel de admin
+pub async fn get_admin_stats(
     pool: web::Data<PgPool>,
     user: UserInfo,
 ) -> Result<HttpResponse> {
@@ -138,92 +140,40 @@ pub async fn get_admin_businesses(
         return Err(e);
     }
 
-    let hotels: Vec<(i32, String, String, String, DateTime<Utc>)> = sqlx::query_as(
-        "SELECT id, name, location, status, created_at FROM hotels ORDER BY created_at DESC"
-    )
-    .fetch_all(pool.get_ref())
-    .await
-    .unwrap_or_else(|_| vec![]);
-
-    let mut businesses: Vec<BusinessItem> = vec![];
-
-    for (id, name, location, status, created_at) in hotels {
-        // Obtener estadísticas de reservas para este hotel
-        let stats: (i64, Option<f64>) = sqlx::query_as(
-            "SELECT COUNT(*), SUM(total_price::numeric) FROM bookings WHERE hotel_id = $1"
-        )
-        .bind(id)
-        .fetch_one(pool.get_ref())
-        .await
-        .unwrap_or((0, None));
-
-        businesses.push(BusinessItem {
-            id,
-            name,
-            business_type: "Hotel".to_string(),
-            location,
-            status,
-            total_bookings: stats.0,
-            total_revenue: stats.1.unwrap_or(0.0),
-            created_at,
-        });
-    }
-
-    Ok(HttpResponse::Ok().json(businesses))
-}
-
-// Obtener detalles de reservas
-pub async fn get_admin_bookings(
-    pool: web::Data<PgPool>,
-    user: UserInfo,
-) -> Result<HttpResponse> {
-    // Verificar que sea admin
-    if let Err(e) = require_admin(&user) {
-        return Err(e);
-    }
-
-    let bookings: Vec<(i32, String, String, f64, String, DateTime<Utc>, String)> = sqlx::query_as(
+    let stats = sqlx::query!(
         r#"
         SELECT 
-            b.id,
-            u.email,
-            h.name,
-            b.total_price::numeric::float8,
-            b.status,
-            b.created_at,
-            b.booking_reference
-        FROM bookings b
-        JOIN users u ON b.user_id = u.id
-        JOIN hotels h ON b.hotel_id = h.id
-        ORDER BY b.created_at DESC
-        LIMIT 50
+            COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
+            COUNT(*) FILTER (WHERE status = 'approved') as approved_count,
+            COUNT(*) FILTER (WHERE status = 'rejected') as rejected_count,
+            COUNT(*) as total_count
+        FROM hotels
         "#
     )
-    .fetch_all(pool.get_ref())
-    .await
-    .unwrap_or_else(|_| vec![]);
+    .fetch_one(pool.get_ref())
+    .await;
 
-    let booking_details: Vec<BookingDetail> = bookings.into_iter().map(
-        |(id, user_email, service_name, total_amount, status, created_at, booking_reference)| {
-            BookingDetail {
-                id,
-                user_email,
-                service_type: "hotel".to_string(),
-                service_name,
-                total_amount,
-                status,
-                created_at,
-                booking_reference,
-            }
+    match stats {
+        Ok(stats) => {
+            Ok(HttpResponse::Ok().json(json!({
+                "pending": stats.pending_count.unwrap_or(0),
+                "approved": stats.approved_count.unwrap_or(0),
+                "rejected": stats.rejected_count.unwrap_or(0),
+                "total": stats.total_count.unwrap_or(0)
+            })))
         }
-    ).collect();
-
-    Ok(HttpResponse::Ok().json(booking_details))
+        Err(e) => {
+            println!("Error al obtener estadísticas: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Error al obtener estadísticas"
+            })))
+        }
+    }
 }
 
 // Obtener analytics de búsquedas (placeholder por ahora)
 pub async fn get_search_analytics(
-    pool: web::Data<PgPool>,
+    _pool: web::Data<PgPool>,
     user: UserInfo,
 ) -> Result<HttpResponse> {
     // Verificar que sea admin
@@ -240,7 +190,7 @@ pub async fn get_search_analytics(
     Ok(HttpResponse::Ok().json(analytics))
 }
 
-// ===== FUNCIONES ORIGINALES QUE YA TENÍAS =====
+// ========== FUNCIONES DE HOTELES ==========
 
 // Ver todos los hoteles pendientes de aprobación
 pub async fn get_pending_hotels(
@@ -285,7 +235,7 @@ pub async fn get_pending_hotels(
                     "owner": {
                         "first_name": h.first_name,
                         "last_name": h.last_name,
-                        "email": h.owner_email
+                        "owner_email": h.owner_email
                     }
                 }))
                 .collect();
@@ -472,8 +422,194 @@ pub async fn get_all_hotels(
     }
 }
 
-// Estadísticas del panel de admin
-pub async fn get_admin_stats(
+// ========== FUNCIONES DE NEGOCIOS/RESTAURANTES ==========
+
+// Obtener negocios pendientes de aprobación
+pub async fn get_pending_businesses(
+    pool: web::Data<PgPool>,
+    user: UserInfo,
+) -> Result<HttpResponse> {
+    // Verificar que es admin
+    if user.role != UserRole::Admin {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "error": "Solo administradores pueden acceder"
+        })));
+    }
+
+    let result = sqlx::query!(
+        r#"
+        SELECT 
+            b.id, b.owner_id, b.business_type, b.name, b.description, 
+            b.location, b.address, b.phone, b.email, b.website, 
+            b.status, b.business_data, b.operating_hours, 
+            b.created_at, b.updated_at, b.approved_at, b.approved_by,
+            u.email as owner_email, u.first_name, u.last_name
+        FROM businesses b
+        JOIN users u ON b.owner_id = u.id
+        WHERE b.status = 'pending'
+        ORDER BY b.created_at ASC
+        "#
+    )
+    .fetch_all(pool.as_ref())
+    .await;
+
+    match result {
+        Ok(rows) => {
+            let businesses: Vec<serde_json::Value> = rows
+                .into_iter()
+                .map(|row| {
+                    let first_name = row.first_name;
+                    let last_name = row.last_name;
+                    let owner_name = format!("{} {}", first_name, last_name).trim().to_string();
+
+                    json!({
+                        "id": row.id,
+                        "owner_id": row.owner_id,
+                        "business_type": row.business_type,
+                        "name": row.name,
+                        "description": row.description,
+                        "location": row.location,
+                        "address": row.address,
+                        "phone": row.phone,
+                        "email": row.email,
+                        "website": row.website,
+                        "status": row.status,
+                        "business_data": row.business_data,
+                        "operating_hours": row.operating_hours,
+                        "created_at": row.created_at,
+                        "updated_at": row.updated_at,
+                        "approved_at": row.approved_at,
+                        "approved_by": row.approved_by,
+                        "owner_email": row.owner_email,
+                        "owner_name": if owner_name.is_empty() { "Usuario".to_string() } else { owner_name }
+                    })
+                })
+                .collect();
+
+            println!("Encontrados {} negocios pendientes", businesses.len());
+            Ok(HttpResponse::Ok().json(businesses))
+        }
+        Err(e) => {
+            eprintln!("Error obteniendo negocios pendientes: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Error al obtener negocios pendientes"
+            })))
+        }
+    }
+}
+
+// Aprobar negocio
+pub async fn approve_business(
+    pool: web::Data<PgPool>,
+    path: web::Path<i32>,
+    user: UserInfo,
+) -> Result<HttpResponse> {
+    if user.role != UserRole::Admin {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "error": "Solo administradores pueden aprobar negocios"
+        })));
+    }
+
+    let business_id = path.into_inner();
+
+    let result = sqlx::query!(
+        r#"
+        UPDATE businesses 
+        SET status = 'approved', 
+            approved_by = $1, 
+            approved_at = NOW(),
+            updated_at = NOW()
+        WHERE id = $2 AND status = 'pending'
+        RETURNING id, name, business_type
+        "#,
+        user.id,
+        business_id
+    )
+    .fetch_optional(pool.as_ref())
+    .await;
+
+    match result {
+        Ok(Some(record)) => {
+            println!("Negocio {} ({}) aprobado por admin {}", 
+                record.name, record.business_type, user.id);
+            
+            Ok(HttpResponse::Ok().json(json!({
+                "message": format!("Negocio {} aprobado exitosamente", record.name),
+                "business_id": record.id,
+                "business_type": record.business_type
+            })))
+        }
+        Ok(None) => {
+            Ok(HttpResponse::NotFound().json(json!({
+                "error": "Negocio no encontrado o ya procesado"
+            })))
+        }
+        Err(e) => {
+            eprintln!("Error aprobando negocio: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Error al aprobar negocio"
+            })))
+        }
+    }
+}
+
+// Rechazar negocio
+pub async fn reject_business(
+    pool: web::Data<PgPool>,
+    path: web::Path<i32>,
+    user: UserInfo,
+) -> Result<HttpResponse> {
+    if user.role != UserRole::Admin {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "error": "Solo administradores pueden rechazar negocios"
+        })));
+    }
+
+    let business_id = path.into_inner();
+
+    let result = sqlx::query!(
+        r#"
+        UPDATE businesses 
+        SET status = 'rejected',
+            approved_by = $1,
+            approved_at = NOW(),
+            updated_at = NOW()
+        WHERE id = $2 AND status = 'pending'
+        RETURNING id, name, business_type
+        "#,
+        user.id,
+        business_id
+    )
+    .fetch_optional(pool.as_ref())
+    .await;
+
+    match result {
+        Ok(Some(record)) => {
+            println!("Negocio {} ({}) rechazado por admin {}", 
+                record.name, record.business_type, user.id);
+            
+            Ok(HttpResponse::Ok().json(json!({
+                "message": format!("Negocio {} rechazado", record.name),
+                "business_id": record.id,
+                "business_type": record.business_type
+            })))
+        }
+        Ok(None) => {
+            Ok(HttpResponse::NotFound().json(json!({
+                "error": "Negocio no encontrado o ya procesado"
+            })))
+        }
+        Err(e) => {
+            eprintln!("Error rechazando negocio: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Error al rechazar negocio"
+            })))
+        }
+    }
+}
+
+// Obtener todos los negocios para admin
+pub async fn get_admin_businesses(
     pool: web::Data<PgPool>,
     user: UserInfo,
 ) -> Result<HttpResponse> {
@@ -482,33 +618,114 @@ pub async fn get_admin_stats(
         return Err(e);
     }
 
-    let stats = sqlx::query!(
+    // Obtener hoteles
+    let hotels: Vec<(i32, String, String, String, DateTime<Utc>)> = sqlx::query_as(
+        "SELECT id, name, location, status, created_at FROM hotels ORDER BY created_at DESC"
+    )
+    .fetch_all(pool.get_ref())
+    .await
+    .unwrap_or_else(|_| vec![]);
+
+    let mut businesses: Vec<BusinessItem> = vec![];
+
+    // Agregar hoteles
+    for (id, name, location, status, created_at) in hotels {
+        let stats: (i64, Option<f64>) = sqlx::query_as(
+            "SELECT COUNT(*), SUM(total_price::numeric) FROM bookings WHERE hotel_id = $1"
+        )
+        .bind(id)
+        .fetch_one(pool.get_ref())
+        .await
+        .unwrap_or((0, None));
+
+        businesses.push(BusinessItem {
+            id,
+            name,
+            business_type: "Hotel".to_string(),
+            location,
+            status,
+            total_bookings: stats.0,
+            total_revenue: stats.1.unwrap_or(0.0),
+            created_at,
+        });
+    }
+
+    // Agregar restaurantes/negocios de la tabla businesses
+    let business_rows = sqlx::query!(
         r#"
         SELECT 
-            COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
-            COUNT(*) FILTER (WHERE status = 'approved') as approved_count,
-            COUNT(*) FILTER (WHERE status = 'rejected') as rejected_count,
-            COUNT(*) as total_count
-        FROM hotels
+            b.id, b.business_type, b.name, b.location, b.status, b.created_at
+        FROM businesses b
+        ORDER BY b.created_at DESC
         "#
     )
-    .fetch_one(pool.get_ref())
-    .await;
+    .fetch_all(pool.as_ref())
+    .await
+    .unwrap_or_else(|_| vec![]);
 
-    match stats {
-        Ok(stats) => {
-            Ok(HttpResponse::Ok().json(json!({
-                "pending": stats.pending_count.unwrap_or(0),
-                "approved": stats.approved_count.unwrap_or(0),
-                "rejected": stats.rejected_count.unwrap_or(0),
-                "total": stats.total_count.unwrap_or(0)
-            })))
-        }
-        Err(e) => {
-            println!("Error al obtener estadísticas: {}", e);
-            Ok(HttpResponse::InternalServerError().json(json!({
-                "error": "Error al obtener estadísticas"
-            })))
-        }
+    for row in business_rows {
+        businesses.push(BusinessItem {
+            id: row.id,
+            name: row.name,
+            business_type: row.business_type,
+            location: row.location,
+            status: row.status,
+            total_bookings: 0, // Por ahora
+            total_revenue: 0.0,
+            created_at: row.created_at.unwrap_or_else(|| Utc::now()),
+        });
     }
+
+    Ok(HttpResponse::Ok().json(businesses))
+}
+
+// ========== FUNCIONES DE RESERVAS ==========
+
+// Obtener detalles de reservas
+pub async fn get_admin_bookings(
+    pool: web::Data<PgPool>,
+    user: UserInfo,
+) -> Result<HttpResponse> {
+    // Verificar que sea admin
+    if let Err(e) = require_admin(&user) {
+        return Err(e);
+    }
+
+    let bookings: Vec<(i32, String, String, f64, String, DateTime<Utc>, String)> = sqlx::query_as(
+        r#"
+        SELECT 
+            b.id,
+            u.email,
+            h.name,
+            b.total_price::numeric::float8,
+            b.status,
+            b.created_at,
+            b.booking_reference
+        FROM bookings b
+        JOIN users u ON b.user_id = u.id
+        JOIN hotels h ON b.hotel_id = h.id
+        ORDER BY b.created_at DESC
+        LIMIT 50
+        "#
+    )
+    .fetch_all(pool.get_ref())
+    .await
+    .unwrap_or_else(|_| vec![]);
+
+    let booking_details: Vec<BookingDetail> = bookings.into_iter().map(
+        |(id, user_email, service_name, total_amount, status, created_at, booking_reference)| {
+            BookingDetail {
+                id,
+                user_email,
+                service_type: "hotel".to_string(),
+                service_name,
+                total_amount,
+                status,
+                created_at,
+                booking_reference,
+            }
+        }
+    ).collect();
+
+    Ok(HttpResponse::Ok().json(booking_details))
 }

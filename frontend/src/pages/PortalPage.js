@@ -1,286 +1,489 @@
-// frontend/src/pages/PortalPage.js - VERSIÓN CORREGIDA CON STATUS BADGE
+// pages/PortalPage.js - VERSIÓN CORREGIDA (HOOKS ANTES DE RETURNS)
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
-import Modal from '../components/Modal';
 
-function PortalPage() {
-    const [myHotels, setMyHotels] = useState([]);
+function PortalPage({ userData, isLoggedIn }) {
+    // 🔥 TODOS LOS HOOKS DEBEN IR AL INICIO ANTES DE CUALQUIER RETURN
+    const [hotels, setHotels] = useState([]);
+    const [businesses, setBusinesses] = useState([]); // 🔥 NUEVO: Para restaurantes
+    const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('overview');
     const [error, setError] = useState(null);
-    const [userData, setUserData] = useState(null);
 
-    // Estado para el modal de reservas
-    const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-    const [currentBookings, setCurrentBookings] = useState([]);
-    const [selectedHotelName, setSelectedHotelName] = useState('');
-    const [bookingsLoading, setBookingsLoading] = useState(false);
-
-    const isAuthorized = useCallback(() => {
+    // 🔥 FUNCIÓN PARA CARGAR HOTELES
+    const fetchHotels = async () => {
+        if (!userData || (userData.role !== 'HotelOwner' && userData.role !== 'Admin')) return;
+        
         try {
-            const user = JSON.parse(localStorage.getItem('user_data'));
             const token = localStorage.getItem('auth_token');
-            if (token && user && (user.role === 'HotelOwner' || user.role === 'Admin')) {
-                if (!userData) setUserData(user);
-                return true;
+            const response = await fetch('http://localhost:8080/api/hotels/my-hotels', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setHotels(data);
+                console.log('✅ Hoteles cargados:', data);
+            } else {
+                console.error('Error cargando hoteles:', response.status);
             }
-            return false;
-        } catch {
-            return false;
-        }
-    }, [userData]);
-
-    const fetchMyHotels = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const token = localStorage.getItem('auth_token');
-            const response = await fetch('/api/hotels/my-hotels', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!response.ok) throw new Error('Error al cargar tus propiedades.');
-            
-            const data = await response.json();
-            setMyHotels(data.hotels || []);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-    
-    // Función para ver las reservas de un hotel
-    const handleViewBookings = async (hotelId, hotelName) => {
-        setBookingsLoading(true);
-        setIsBookingModalOpen(true);
-        setSelectedHotelName(hotelName);
-        setCurrentBookings([]);
-
-        try {
-            const token = localStorage.getItem('auth_token');
-            const response = await fetch(`http://127.0.0.1:8080/api/portal/hotels/${hotelId}/bookings`, {
-                 headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!response.ok) throw new Error('No se pudieron cargar las reservas.');
-            
-            const data = await response.json();
-            setCurrentBookings(data.bookings || []);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setBookingsLoading(false);
+        } catch (error) {
+            console.error('Error cargando hoteles:', error);
+            setError('Error al cargar hoteles');
         }
     };
 
-    useEffect(() => {
-        if (isAuthorized()) {
-            fetchMyHotels();
+    // 🔥 FUNCIÓN PARA CARGAR NEGOCIOS/RESTAURANTES
+    const fetchBusinesses = async () => {
+        if (!userData || (userData.role !== 'BusinessOwner' && userData.role !== 'Admin')) return;
+        
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch('http://localhost:8080/api/businesses/my-businesses', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setBusinesses(data);
+                console.log('✅ Negocios cargados:', data);
+            } else {
+                console.error('Error cargando negocios:', response.status);
+            }
+        } catch (error) {
+            console.error('Error cargando negocios:', error);
+            setError('Error al cargar negocios');
         }
-    }, [isAuthorized, fetchMyHotels]);
-    
-    if (!isAuthorized()) return <Navigate to="/" replace />;
-    
-    if (loading) return <div className="p-8 text-center">Cargando tu portal...</div>;
-    if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
+    };
+
+    // 🔥 FUNCIÓN PARA CARGAR RESERVAS
+    const fetchBookings = async () => {
+        if (!userData) return;
+        
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch('http://localhost:8080/api/bookings/my-bookings', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setBookings(data);
+                console.log('✅ Reservas cargadas:', data);
+            }
+        } catch (error) {
+            console.error('Error cargando reservas:', error);
+        }
+    };
+
+    // 🔥 HOOK useEffect DEBE IR DESPUÉS DE LAS FUNCIONES PERO ANTES DE LOS RETURNS
+    useEffect(() => {
+        // Solo ejecutar si tenemos userData válido
+        if (!userData) return;
+
+        const loadData = async () => {
+            setLoading(true);
+            setError(null);
+            
+            await Promise.all([
+                fetchHotels(),
+                fetchBusinesses(), // 🔥 NUEVO
+                fetchBookings()
+            ]);
+            
+            setLoading(false);
+        };
+
+        loadData();
+    }, [userData]); // Dependencia correcta
+
+    // 🔥 AHORA SÍ PODEMOS USAR RETURNS CONDICIONALES (DESPUÉS DE TODOS LOS HOOKS)
+    // Verificar autenticación
+    if (!isLoggedIn || !userData) {
+        return <Navigate to="/" replace />;
+    }
+
+    // Verificar que sea hotel owner o business owner
+    const isHotelOwner = userData.role === 'HotelOwner';
+    const isBusinessOwner = userData.role === 'BusinessOwner';
+    const canAccessPortal = isHotelOwner || isBusinessOwner || userData.role === 'Admin';
+
+    if (!canAccessPortal) {
+        return <Navigate to="/" replace />;
+    }
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-100 flex justify-center items-center">
+                <div className="bg-white p-8 rounded-lg shadow">
+                    <div className="text-xl">Cargando portal...</div>
+                </div>
+            </div>
+        );
+    }
+
+    // 🔥 DETERMINAR QUE TABS MOSTRAR SEGÚN EL ROL
+    const getAvailableTabs = () => {
+        const tabs = [{ id: 'overview', name: 'Resumen', icon: '📊' }];
+        
+        if (isHotelOwner || userData.role === 'Admin') {
+            tabs.push({ id: 'hotels', name: 'Mis Hoteles', icon: '🏨' });
+        }
+        
+        if (isBusinessOwner || userData.role === 'Admin') {
+            tabs.push({ id: 'businesses', name: 'Mis Restaurantes', icon: '🍽️' });
+        }
+        
+        tabs.push({ id: 'bookings', name: 'Reservas', icon: '📅' });
+        
+        return tabs;
+    };
 
     return (
-        <>
-            <div className="container mx-auto px-6 py-12">
-                <div className="flex justify-between items-center mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold">Portal de Negocios</h1>
-                        <p className="text-gray-600">Bienvenido, {userData?.first_name}. Aquí puedes gestionar tus propiedades.</p>
+        <div className="min-h-screen bg-gray-100">
+            {/* Header */}
+            <div className="bg-white shadow">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex justify-between items-center py-6">
+                        <div>
+                            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+                                Portal de {isHotelOwner ? 'Hoteles' : 'Restaurantes'}
+                            </h1>
+                            <p className="text-gray-600">
+                                Bienvenido, {userData.first_name} {userData.last_name}
+                            </p>
+                        </div>
+                        
+                        {/* Botón para agregar nuevo */}
+                        <div className="flex space-x-4">
+                            {isHotelOwner && (
+                                <Link
+                                    to="/portal/nuevo-hotel"
+                                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                >
+                                    + Nuevo Hotel
+                                </Link>
+                            )}
+                            {isBusinessOwner && (
+                                <Link
+                                    to="/registro-restaurante"
+                                    className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-medium"
+                                >
+                                    + Nuevo Restaurante
+                                </Link>
+                            )}
+                        </div>
                     </div>
-                    <Link to="/portal/nuevo-hotel" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition">
-                        + Registrar Nuevo Hotel
-                    </Link>
-                </div>
 
-                {myHotels.length === 0 ? (
-                    <div className="text-center py-16 bg-white rounded-lg shadow">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-4">No tienes hoteles registrados</h2>
-                        <p className="text-gray-600 mb-6">Comienza registrando tu primera propiedad</p>
-                        <Link to="/portal/nuevo-hotel" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition">
-                            Registrar Hotel
-                        </Link>
-                    </div>
-                ) : (
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {myHotels.map(hotel => (
-                            <div key={hotel.id} className="bg-white rounded-xl shadow-lg overflow-hidden relative flex flex-col">
-                                <StatusBadge status={hotel.status} />
-                                <img 
-                                    src={hotel.image_url || 'https://via.placeholder.com/400x300'} 
-                                    alt={hotel.name} 
-                                    className="w-full h-56 object-cover" 
-                                />
-                                <div className="p-6 flex flex-col flex-grow">
-                                    <h3 className="text-2xl font-bold mb-2">{hotel.name}</h3>
-                                    <p className="text-gray-600 mb-4 flex-grow">{hotel.location}</p>
-                                    <div className="mt-4 pt-4 border-t flex justify-between items-center">
-                                        <button 
-                                            onClick={() => handleViewBookings(hotel.id, hotel.name)} 
-                                            className="bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 px-4 rounded-full transition"
-                                        >
-                                            Ver Reservas
-                                        </button>
-                                        <div className="space-x-2">
-                                            <Link 
-                                                to={`/portal/editar-hotel/${hotel.id}`}
-                                                className="text-blue-600 hover:underline text-sm font-semibold"
-                                            >
-                                                Editar
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    {/* Tabs */}
+                    <div className="flex space-x-8 border-b">
+                        {getAvailableTabs().map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`py-4 px-2 border-b-2 font-medium text-sm ${
+                                    activeTab === tab.id
+                                        ? 'border-blue-500 text-blue-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                                {tab.icon} {tab.name}
+                            </button>
                         ))}
                     </div>
-                )}
+                </div>
             </div>
 
-            <Modal isOpen={isBookingModalOpen} onClose={() => setIsBookingModalOpen(false)}>
-                <BookingsModal
-                    loading={bookingsLoading}
-                    bookings={currentBookings}
-                    hotelName={selectedHotelName}
-                />
-            </Modal>
-        </>
+            {/* Content */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {error && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+                        {error}
+                    </div>
+                )}
+
+                {activeTab === 'overview' && (
+                    <OverviewTab 
+                        hotels={hotels} 
+                        businesses={businesses} 
+                        bookings={bookings} 
+                        userRole={userData.role}
+                    />
+                )}
+                {activeTab === 'hotels' && <HotelsTab hotels={hotels} />}
+                {activeTab === 'businesses' && <BusinessesTab businesses={businesses} />}
+                {activeTab === 'bookings' && <BookingsTab bookings={bookings} />}
+            </div>
+        </div>
     );
 }
 
-// ✅ COMPONENTE STATUS BADGE IMPLEMENTADO CORRECTAMENTE
-const StatusBadge = ({ status }) => {
-    const statusConfig = {
-        pending: { 
-            bg: 'bg-yellow-100', 
-            text: 'text-yellow-800', 
-            label: 'Pendiente' 
-        },
-        confirmed: { 
-            bg: 'bg-green-100', 
-            text: 'text-green-800', 
-            label: 'Confirmado' 
-        },
-        cancelled: { 
-            bg: 'bg-red-100', 
-            text: 'text-red-800', 
-            label: 'Cancelado' 
-        },
-        completed: { 
-            bg: 'bg-blue-100', 
-            text: 'text-blue-800', 
-            label: 'Completado' 
-        },
-        approved: { 
-            bg: 'bg-green-100', 
-            text: 'text-green-800', 
-            label: 'Aprobado' 
-        },
-        rejected: { 
-            bg: 'bg-red-100', 
-            text: 'text-red-800', 
-            label: 'Rechazado' 
-        }
-    };
-
-    const config = statusConfig[status] || { 
-        bg: 'bg-gray-100', 
-        text: 'text-gray-800', 
-        label: status || 'Sin estado' 
-    };
+// 🔥 COMPONENTE OVERVIEW ACTUALIZADO
+function OverviewTab({ hotels, businesses, bookings, userRole }) {
+    const totalHotels = hotels.length;
+    const totalBusinesses = businesses.length;
+    const totalBookings = bookings.length;
+    const pendingHotels = hotels.filter(h => h.status === 'pending').length;
+    const pendingBusinesses = businesses.filter(b => b.status === 'pending').length;
 
     return (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
-            {config.label}
-        </span>
-    );
-};
-
-// ✅ MODAL DE RESERVAS CORREGIDO
-const BookingsModal = ({ loading, bookings, hotelName }) => (
-    <div className="max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold mb-4">Reservas para: {hotelName}</h2>
-        
-        {loading ? (
-            <div className="text-center py-8">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <p className="mt-2 text-gray-600">Cargando reservas...</p>
-            </div>
-        ) : bookings.length === 0 ? (
-            <div className="text-center py-8">
-                <div className="text-gray-400 text-6xl mb-4">📅</div>
-                <p className="text-gray-600 text-lg">Este hotel aún no tiene reservas.</p>
-                <p className="text-gray-500 text-sm mt-2">Las reservas aparecerán aquí cuando los clientes hagan reservaciones.</p>
-            </div>
-        ) : (
-            <div className="overflow-x-auto">
-                <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                    <p className="text-sm text-blue-800">
-                        <strong>Total de reservas:</strong> {bookings.length}
-                    </p>
-                </div>
+        <div className="space-y-6">
+            {/* Métricas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {(userRole === 'HotelOwner' || userRole === 'Admin') && (
+                    <>
+                        <MetricCard title="Total Hoteles" value={totalHotels} color="blue" />
+                        <MetricCard title="Hoteles Pendientes" value={pendingHotels} color="yellow" />
+                    </>
+                )}
                 
-                <div className="max-h-96 overflow-y-auto">
+                {(userRole === 'BusinessOwner' || userRole === 'Admin') && (
+                    <>
+                        <MetricCard title="Total Restaurantes" value={totalBusinesses} color="red" />
+                        <MetricCard title="Restaurantes Pendientes" value={pendingBusinesses} color="orange" />
+                    </>
+                )}
+                
+                <MetricCard title="Total Reservas" value={totalBookings} color="green" />
+            </div>
+
+            {/* Estado de aprobación */}
+            <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold mb-4">Estado de Aprobación</h3>
+                
+                {userRole === 'HotelOwner' && hotels.length === 0 && (
+                    <div className="text-center py-8">
+                        <p className="text-gray-500 mb-4">No tienes hoteles registrados</p>
+                        <Link
+                            to="/portal/nuevo-hotel"
+                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                        >
+                            Registrar Primer Hotel
+                        </Link>
+                    </div>
+                )}
+
+                {userRole === 'BusinessOwner' && businesses.length === 0 && (
+                    <div className="text-center py-8">
+                        <p className="text-gray-500 mb-4">No tienes restaurantes registrados</p>
+                        <Link
+                            to="/registro-restaurante"
+                            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700"
+                        >
+                            Registrar Primer Restaurante
+                        </Link>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// 🔥 NUEVO COMPONENTE PARA PESTAÑA DE RESTAURANTES
+function BusinessesTab({ businesses }) {
+    if (businesses.length === 0) {
+        return (
+            <div className="bg-white rounded-lg shadow p-8 text-center">
+                <h3 className="text-xl font-semibold mb-4">No tienes restaurantes registrados</h3>
+                <p className="text-gray-600 mb-6">Registra tu primer restaurante para comenzar</p>
+                <Link
+                    to="/registro-restaurante"
+                    className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                    + Registrar Restaurante
+                </Link>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Mis Restaurantes</h2>
+                <Link
+                    to="/registro-restaurante"
+                    className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                    + Nuevo Restaurante
+                </Link>
+            </div>
+
+            <div className="grid gap-6">
+                {businesses.map((business) => (
+                    <div key={business.id} className="bg-white rounded-lg shadow p-6">
+                        <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                                <h3 className="text-xl font-semibold mb-2">{business.name}</h3>
+                                <p className="text-gray-600 mb-2">{business.description}</p>
+                                <p className="text-sm text-gray-500">
+                                    📍 {business.location} • {business.address}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    📞 {business.phone} • ✉️ {business.email}
+                                </p>
+                            </div>
+                            
+                            <div className="flex flex-col items-end space-y-2">
+                                <StatusBadge status={business.status} />
+                                <div className="flex space-x-2">
+                                    <Link
+                                        to={`/businesses/${business.id}/edit`}
+                                        className="text-blue-600 hover:text-blue-800 text-sm"
+                                    >
+                                        Editar
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {business.status === 'pending' && (
+                            <div className="mt-4 p-4 bg-yellow-50 rounded-lg">
+                                <p className="text-yellow-800 text-sm">
+                                    ⏳ Tu restaurante está pendiente de aprobación por el administrador
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// Componentes existentes
+function HotelsTab({ hotels }) {
+    if (hotels.length === 0) {
+        return (
+            <div className="bg-white rounded-lg shadow p-8 text-center">
+                <h3 className="text-xl font-semibold mb-4">No tienes hoteles registrados</h3>
+                <p className="text-gray-600 mb-6">Registra tu primer hotel para comenzar</p>
+                <Link
+                    to="/portal/nuevo-hotel"
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    + Registrar Hotel
+                </Link>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Mis Hoteles</h2>
+                <Link
+                    to="/portal/nuevo-hotel"
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    + Nuevo Hotel
+                </Link>
+            </div>
+
+            <div className="grid gap-6">
+                {hotels.map((hotel) => (
+                    <div key={hotel.id} className="bg-white rounded-lg shadow p-6">
+                        <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                                <h3 className="text-xl font-semibold mb-2">{hotel.name}</h3>
+                                <p className="text-gray-600 mb-2">{hotel.description}</p>
+                                <p className="text-sm text-gray-500">
+                                    📍 {hotel.location} • {hotel.address}
+                                </p>
+                                <p className="text-lg font-bold text-green-600 mt-2">
+                                    ${hotel.price} MXN/noche
+                                </p>
+                            </div>
+                            
+                            <div className="flex flex-col items-end space-y-2">
+                                <StatusBadge status={hotel.status} />
+                                <div className="flex space-x-2">
+                                    <Link
+                                        to={`/portal/editar-hotel/${hotel.id}`}
+                                        className="text-blue-600 hover:text-blue-800 text-sm"
+                                    >
+                                        Editar
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {hotel.status === 'pending' && (
+                            <div className="mt-4 p-4 bg-yellow-50 rounded-lg">
+                                <p className="text-yellow-800 text-sm">
+                                    ⏳ Tu hotel está pendiente de aprobación por el administrador
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function BookingsTab({ bookings }) {
+    if (bookings.length === 0) {
+        return (
+            <div className="bg-white rounded-lg shadow p-8 text-center">
+                <h3 className="text-xl font-semibold mb-4">No tienes reservas</h3>
+                <p className="text-gray-600">Las reservas de tus clientes aparecerán aquí</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <h2 className="text-2xl font-bold">Reservas de mis Servicios</h2>
+            
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50 sticky top-0">
+                        <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Cliente
                                 </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Check-in
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Servicio
                                 </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Check-out
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Fecha
                                 </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Huéspedes
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Monto
                                 </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Total
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Estado
                                 </th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {bookings.map(booking => (
-                                <tr key={booking.id} className="hover:bg-gray-50">
-                                    <td className="px-4 py-4 whitespace-nowrap">
-                                        <div className="text-sm font-medium text-gray-900">
-                                            {booking.customer_name}
-                                        </div>
-                                        <div className="text-sm text-gray-500">
-                                            {booking.customer_email}
-                                        </div>
+                            {bookings.map((booking) => (
+                                <tr key={booking.id}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {booking.customer_name || booking.customer_email}
                                     </td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {new Date(booking.check_in).toLocaleDateString('es-ES', {
-                                            year: 'numeric',
-                                            month: 'short',
-                                            day: 'numeric'
-                                        })}
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {booking.service_name}
                                     </td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {new Date(booking.check_out).toLocaleDateString('es-ES', {
-                                            year: 'numeric',
-                                            month: 'short',
-                                            day: 'numeric'
-                                        })}
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {new Date(booking.booking_date).toLocaleDateString()}
                                     </td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {booking.guests}
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        ${booking.total_amount} MXN
                                     </td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        ${booking.total_price?.toFixed(2)} MXN
-                                    </td>
-                                    <td className="px-4 py-4 whitespace-nowrap">
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                         <StatusBadge status={booking.status} />
                                     </td>
                                 </tr>
@@ -289,8 +492,58 @@ const BookingsModal = ({ loading, bookings, hotelName }) => (
                     </table>
                 </div>
             </div>
-        )}
-    </div>
-);
+        </div>
+    );
+}
+
+// Componente para métricas
+function MetricCard({ title, value, color = "blue" }) {
+    const colorClasses = {
+        blue: "border-blue-500 text-blue-600",
+        green: "border-green-500 text-green-600",
+        red: "border-red-500 text-red-600",
+        yellow: "border-yellow-500 text-yellow-600",
+        orange: "border-orange-500 text-orange-600"
+    };
+
+    return (
+        <div className={`bg-white rounded-lg shadow p-6 border-l-4 ${colorClasses[color]}`}>
+            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                {title}
+            </h3>
+            <p className="mt-2 text-3xl font-bold text-gray-900">
+                {value}
+            </p>
+        </div>
+    );
+}
+
+// Componente para badges de estado
+function StatusBadge({ status }) {
+    const getStatusConfig = (status) => {
+        switch (status) {
+            case 'approved':
+                return { text: 'Aprobado', className: 'bg-green-100 text-green-800' };
+            case 'pending':
+                return { text: 'Pendiente', className: 'bg-yellow-100 text-yellow-800' };
+            case 'rejected':
+                return { text: 'Rechazado', className: 'bg-red-100 text-red-800' };
+            case 'confirmed':
+                return { text: 'Confirmada', className: 'bg-green-100 text-green-800' };
+            case 'cancelled':
+                return { text: 'Cancelada', className: 'bg-red-100 text-red-800' };
+            default:
+                return { text: status, className: 'bg-gray-100 text-gray-800' };
+        }
+    };
+
+    const config = getStatusConfig(status);
+    
+    return (
+        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${config.className}`}>
+            {config.text}
+        </span>
+    );
+}
 
 export default PortalPage;
