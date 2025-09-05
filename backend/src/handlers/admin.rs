@@ -29,7 +29,7 @@ pub async fn approve_hotel(pool: web::Data<PgPool>, path: web::Path<i32>, _user:
         .await?;
     
     if result.rows_affected() == 0 {
-        return Err(AppError::NotFound);
+        return Err(AppError::NotFound("Recurso no encontrado".to_string()));
     }
     Ok(HttpResponse::Ok().json(serde_json::json!({"message": "Hotel approved"})))
 }
@@ -47,7 +47,7 @@ pub async fn reject_hotel(
         .await?;
     
     if result.rows_affected() == 0 {
-        return Err(AppError::NotFound);
+        return Err(AppError::NotFound("Recurso no encontrado".to_string()));
     }
 
     Ok(HttpResponse::Ok().json(serde_json::json!({"message": "Hotel rejected"})))
@@ -91,7 +91,7 @@ pub async fn approve_business(pool: web::Data<PgPool>, path: web::Path<i32>, _us
         .await?;
     
     if result.rows_affected() == 0 {
-        return Err(AppError::NotFound);
+        return Err(AppError::NotFound("Recurso no encontrado".to_string()));
     }
     Ok(HttpResponse::Ok().json(serde_json::json!({"message": "Business approved"})))
 }
@@ -105,7 +105,7 @@ pub async fn reject_business(pool: web::Data<PgPool>, path: web::Path<i32>, _use
         .await?;
     
     if result.rows_affected() == 0 {
-        return Err(AppError::NotFound);
+        return Err(AppError::NotFound("Recurso no encontrado".to_string()));
     }
     Ok(HttpResponse::Ok().json(serde_json::json!({"message": "Business rejected"})))
 }

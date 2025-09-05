@@ -44,7 +44,7 @@ pub async fn create_business(
     .bind(&operating_hours_json)
     .fetch_one(pool.get_ref())
     .await
-    .map_err(AppError::DatabaseError)?;
+    .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
     Ok(HttpResponse::Created().json(serde_json::json!({
         "message": "Negocio creado exitosamente",
@@ -74,7 +74,7 @@ pub async fn get_my_businesses(
     .bind(user.id)
     .fetch_all(pool.get_ref())
     .await
-    .map_err(AppError::DatabaseError)?;
+    .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
     let business_list: Vec<serde_json::Value> = businesses.into_iter().map(|b| serde_json::json!({
         "id": b.get::<i32, _>("id"),
@@ -107,7 +107,7 @@ pub async fn get_business_detail(
     .bind(user.id)
     .fetch_optional(pool.get_ref())
     .await
-    .map_err(AppError::DatabaseError)?;
+    .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
     match business {
         Some(business) => {
@@ -128,7 +128,7 @@ pub async fn get_business_detail(
                 "created_at": business.get::<chrono::DateTime<chrono::Utc>, _>("created_at")
             })))
         }
-        None => Err(AppError::NotFound),
+        None => Err(AppError::NotFound("Recurso no encontrado".to_string())),
     }
 }
 
@@ -162,10 +162,10 @@ pub async fn update_business(
     .bind(user.id)
     .execute(pool.get_ref())
     .await
-    .map_err(AppError::DatabaseError)?;
+    .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
     if result.rows_affected() == 0 {
-        return Err(AppError::NotFound);
+        return Err(AppError::NotFound("Recurso no encontrado".to_string()));
     }
 
     Ok(HttpResponse::Ok().json(serde_json::json!({"message": "Negocio actualizado"})))
@@ -183,10 +183,10 @@ pub async fn delete_business(
         .bind(user.id)
         .execute(pool.get_ref())
         .await
-        .map_err(AppError::DatabaseError)?;
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
     if result.rows_affected() == 0 {
-        return Err(AppError::NotFound);
+        return Err(AppError::NotFound("Recurso no encontrado".to_string()));
     }
 
     Ok(HttpResponse::Ok().json(serde_json::json!({"message": "Negocio eliminado"})))
