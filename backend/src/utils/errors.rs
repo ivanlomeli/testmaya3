@@ -14,6 +14,9 @@ pub enum AppError {
     #[error("Credenciales incorrectas")]
     Unauthorized,
 
+    #[error("Solicitud incorrecta: {0}")]
+    BadRequest(String),
+
     #[error("Error interno del servidor")]
     InternalServerError(String),
 }
@@ -24,6 +27,7 @@ impl ResponseError for AppError {
             AppError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::NotFound => StatusCode::NOT_FOUND,
             AppError::Unauthorized => StatusCode::UNAUTHORIZED,
+            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

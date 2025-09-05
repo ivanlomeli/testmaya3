@@ -1,38 +1,44 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:13
-    restart: always
-    env_file:
-      - ./backend/.env # Carga las variables desde aquí
+    container_name: maya-digital-platform-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: postgres
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/seed.sql:/docker-entrypoint-initdb.d/seed.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
 
   backend:
-    build:
+    build: 
       context: ./backend
       dockerfile: Dockerfile
-    restart: always
-    env_file:
-      - ./backend/.env # Carga las variables desde aquí
+    container_name: maya-digital-platform-backend
+    environment:
+      DATABASE_URL: postgresql://postgres:password123@db:5432/postgres
+      JWT_SECRET: tu-clave-secreta-muy-segura-cambiar-en-produccion-maya2024
+      RUST_LOG: info
+      PORT: 8080
     ports:
       - "8080:8080"
     depends_on:
       - db
+    restart: unless-stopped
 
   frontend:
-    build:
+    build: 
       context: ./frontend
       dockerfile: Dockerfile
-    restart: always
+    container_name: maya-digital-platform-frontend
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
       - backend
+    restart: unless-stopped
 
 volumes:
   postgres_data:

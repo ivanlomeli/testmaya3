@@ -1,105 +1,116 @@
-use actix_web::{web, HttpResponse, post, get, put};
-use sqlx::PgPool;
+use actix_web::{web, HttpResponse};
+use sqlx::{PgPool, Row};
 use crate::{
-    models::booking::{Booking, CreateBookingRequest, BookingStatus},
-    middleware::auth::JwtMiddleware,
+    models::{UserInfo, booking::CreateBookingRequest},
     utils::errors::AppError,
 };
 
-#[post("/api/bookings")]
 pub async fn create_booking(
     pool: web::Data<PgPool>,
     body: web::Json<CreateBookingRequest>,
-    user: JwtMiddleware,
+    user: UserInfo,
 ) -> Result<HttpResponse, AppError> {
-    let customer_id = user.user_id;
-    let booking_data = body.into_inner();
+    let req = body.into_inner();
+    let customer_id = user.id;
 
-    // Aquí iría la lógica de validación (ej. verificar disponibilidad, precios, etc.)
-    // Por ahora, insertamos directamente.
-
-    let booking = sqlx::query_as!(
-        Booking,
+    let booking = sqlx::query(
         "INSERT INTO bookings (hotel_id, customer_id, check_in_date, check_out_date, status)
          VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, hotel_id, customer_id, check_in_date, check_out_date, status, created_at",
-        booking_data.hotel_id,
-        customer_id,
-        booking_data.check_in_date,
-        booking_data.check_out_date,
-        BookingStatus::Confirmed as BookingStatus
+         RETURNING id, hotel_id, customer_id, check_in_date, check_out_date, status, created_at"
     )
+    .bind(req.hotel_id)
+    .bind(customer_id)
+    .bind(req.check_in_date)
+    .bind(req.check_out_date)
+    .bind("confirmed")
     .fetch_one(pool.get_ref())
     .await?;
 
-    Ok(HttpResponse::Created().json(booking))
+    Ok(HttpResponse::Created().json(serde_json::json!({
+        "message": "Reserva creada exitosamente",
+        "booking_id": booking.get::<i32, _>("id")
+    })))
 }
 
-#[get("/api/bookings/my-bookings")]
 pub async fn get_my_bookings(
     pool: web::Data<PgPool>,
-    user: JwtMiddleware,
+    user: UserInfo,
 ) -> Result<HttpResponse, AppError> {
-    let customer_id = user.user_id;
-    let bookings = sqlx::query_as!(
-        Booking,
+    let customer_id = user.id;
+
+    let bookings = sqlx::query(
         "SELECT id, hotel_id, customer_id, check_in_date, check_out_date, status, created_at
-         FROM bookings WHERE customer_id = $1",
-        customer_id
+         FROM bookings WHERE customer_id = $1"
     )
+    .bind(customer_id)
     .fetch_all(pool.get_ref())
     .await?;
 
-    Ok(HttpResponse::Ok().json(bookings))
+    let booking_list: Vec<serde_json::Value> = bookings.into_iter().map(|b| serde_json::json!({
+        "id": b.get::<i32, _>("id"),
+        "hotel_id": b.get::<i32, _>("hotel_id"),
+        "customer_id": b.get::<i32, _>("customer_id"),
+        "check_in_date": b.get::<chrono::DateTime<chrono::Utc>, _>("check_in_date"),
+        "check_out_date": b.get::<chrono::DateTime<chrono::Utc>, _>("check_out_date"),
+        "status": b.get::<String, _>("status"),
+        "created_at": b.get::<chrono::DateTime<chrono::Utc>, _>("created_at")
+    })).collect();
+
+    Ok(HttpResponse::Ok().json(booking_list))
 }
 
-#[put("/api/bookings/{id}/cancel")]
 pub async fn cancel_booking(
     pool: web::Data<PgPool>,
     path: web::Path<i32>,
-    user: JwtMiddleware,
+    user: UserInfo,
 ) -> Result<HttpResponse, AppError> {
     let booking_id = path.into_inner();
-    let customer_id = user.user_id;
+    let customer_id = user.id;
 
-    let result = sqlx::query!(
-        "UPDATE bookings SET status = $1 WHERE id = $2 AND customer_id = $3",
-        BookingStatus::Cancelled as BookingStatus,
-        booking_id,
-        customer_id
+    let result = sqlx::query(
+        "UPDATE bookings SET status = $1 WHERE id = $2 AND customer_id = $3"
     )
+    .bind("cancelled")
+    .bind(booking_id)
+    .bind(customer_id)
     .execute(pool.get_ref())
     .await?;
 
     if result.rows_affected() == 0 {
-        return Err(AppError::NotFound); // O no es el dueño o no existe
+        return Err(AppError::NotFound);
     }
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({"message": "Booking cancelled successfully"})))
+    Ok(HttpResponse::Ok().json(serde_json::json!({"message": "Reserva cancelada"})))
 }
 
-// Handler para que el dueño del hotel vea sus reservas.
-#[get("/api/portal/hotels/{hotel_id}/bookings")]
 pub async fn get_hotel_bookings(
     pool: web::Data<PgPool>,
     path: web::Path<i32>,
-    user: JwtMiddleware,
+    user: UserInfo,
 ) -> Result<HttpResponse, AppError> {
     let hotel_id = path.into_inner();
-    let owner_id = user.user_id;
+    let owner_id = user.id;
 
-    // Verificar que el usuario es dueño del hotel antes de mostrar las reservas
-    let bookings = sqlx::query_as!(
-        Booking,
+    let bookings = sqlx::query(
         "SELECT b.id, b.hotel_id, b.customer_id, b.check_in_date, b.check_out_date, b.status, b.created_at
          FROM bookings b
          JOIN hotels h ON b.hotel_id = h.id
-         WHERE b.hotel_id = $1 AND h.owner_id = $2",
-        hotel_id,
-        owner_id
+         WHERE h.id = $1 AND h.owner_id = $2"
     )
+    .bind(hotel_id)
+    .bind(owner_id)
     .fetch_all(pool.get_ref())
     .await?;
 
-    Ok(HttpResponse::Ok().json(bookings))
+    let booking_list: Vec<serde_json::Value> = bookings.into_iter().map(|b| serde_json::json!({
+        "id": b.get::<i32, _>("id"),
+        "hotel_id": b.get::<i32, _>("hotel_id"),
+        "customer_id": b.get::<i32, _>("customer_id"),
+        "check_in_date": b.get::<chrono::DateTime<chrono::Utc>, _>("check_in_date"),
+        "check_out_date": b.get::<chrono::DateTime<chrono::Utc>, _>("check_out_date"),
+        "status": b.get::<String, _>("status"),
+        "created_at": b.get::<chrono::DateTime<chrono::Utc>, _>("created_at")
+    })).collect();
+
+    Ok(HttpResponse::Ok().json(booking_list))
 }
