@@ -1,50 +1,38 @@
+version: '3.8'
+
 services:
-  # Servicio del Backend (Rust)
+  db:
+    image: postgres:13
+    restart: always
+    env_file:
+      - ./backend/.env # Carga las variables desde aquí
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/seed.sql:/docker-entrypoint-initdb.d/seed.sql
+
   backend:
-    build: ./backend
-    container_name: maya_backend
-    restart: unless-stopped
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - ./backend/.env # Carga las variables desde aquí
     ports:
       - "8080:8080"
-    env_file:
-      - ./.env
     depends_on:
-      - postgres_db
+      - db
 
-  # Servicio del Frontend (React)
   frontend:
-    build: ./frontend
-    container_name: maya_frontend
-    restart: unless-stopped
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
     ports:
       - "3000:3000"
     depends_on:
       - backend
 
-  # Servicio de la Base de Datos PostgreSQL
-  postgres_db:
-    image: postgres:15
-    container_name: maya_postgres_db
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=mayadmin
-      - POSTGRES_PASSWORD=mysecretpassword
-      - POSTGRES_DB=mayadigital_copia
-    ports:
-      - "5434:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-
-  # Servicio de la Base de Datos MongoDB
-  mongo_db:
-    image: mongo:latest
-    container_name: maya_mongo_db
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-
 volumes:
-  postgres-data:
-  mongo-data:
+  postgres_data:

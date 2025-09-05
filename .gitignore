@@ -17,3 +17,8 @@ Cargo.lock
 .DS_Store
 Thumbs.db
 .env
+# Frontend build artifacts
+frontend/.next/
+
+# Rust build artifacts
+backend/target/

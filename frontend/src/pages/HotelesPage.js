@@ -1,6 +1,6 @@
-// src/pages/HotelesPage.js - VERSIÓN MEJORADA
+// src/pages/HotelesPage.js - VERSIÓN OPTIMIZADA SIN DUPLICADOS
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import heroImage from '../assets/hero-background.jpg';
 import PredictiveSearch from '../components/PredictiveSearch';
 import HotelOwnerBanner from '../components/HotelOwnerBanner';
@@ -9,16 +9,32 @@ export default function HotelesPage({ onReserveClick }) {
     const [hoteles, setHoteles] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    
+    // Referencia para evitar múltiples llamadas
+    const hasFetched = useRef(false);
 
     useEffect(() => {
+        // Prevenir ejecuciones múltiples con un flag global
+        if (hasFetched.current) {
+            console.log('🛑 Fetch ya ejecutado, saltando...');
+            return;
+        }
+        
         const fetchHoteles = async () => {
+            
+            // Crear AbortController para cancelar peticiones
+            const controller = new AbortController();
+            
             try {
+                hasFetched.current = true;
                 setIsLoading(true);
                 setError(null);
                 
                 console.log('🚀 Intentando cargar hoteles desde /api/hoteles...');
                 
-                const response = await fetch('/api/hoteles');
+                const response = await fetch('/api/hoteles', {
+                    signal: controller.signal
+                });
                 
                 console.log('📡 Respuesta recibida:', {
                     status: response.status,
@@ -27,17 +43,14 @@ export default function HotelesPage({ onReserveClick }) {
                     url: response.url
                 });
                 
-                // Verificar si la respuesta es exitosa
                 if (!response.ok) {
                     throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
                 }
                 
-                // Verificar el tipo de contenido
                 const contentType = response.headers.get('content-type');
                 console.log('📋 Content-Type:', contentType);
                 
                 if (!contentType || !contentType.includes('application/json')) {
-                    // Si no es JSON, obtener el texto para debug
                     const text = await response.text();
                     console.error('❌ Respuesta no es JSON. Primeros 500 caracteres:', text.substring(0, 500));
                     throw new Error('El servidor no devolvió JSON válido. Verifica que el backend esté corriendo en el puerto 8080.');
@@ -46,7 +59,6 @@ export default function HotelesPage({ onReserveClick }) {
                 const data = await response.json();
                 console.log('✅ Hoteles cargados exitosamente:', data);
                 
-                // Verificar que data es un array
                 if (Array.isArray(data)) {
                     setHoteles(data);
                 } else {
@@ -55,19 +67,38 @@ export default function HotelesPage({ onReserveClick }) {
                 }
                 
             } catch (error) {
+                // No mostrar error si fue cancelado
+                if (error.name === 'AbortError') {
+                    console.log('🚫 Petición cancelada');
+                    return;
+                }
+                
                 console.error("❌ Error completo:", error);
                 setError(error.message);
+                hasFetched.current = false; // Permitir reintentar en caso de error
             } finally {
                 setIsLoading(false);
             }
+            
+            // Cleanup function para cancelar la petición si el componente se desmonta
+            return () => {
+                controller.abort();
+            };
         };
 
         fetchHoteles();
-    }, []);
+        
+        // Cleanup del useEffect
+        return () => {
+            // Reset solo si el componente se desmonta completamente
+        };
+    }, []); // Array vacío - solo ejecutar una vez
 
     const handleRetry = () => {
+        hasFetched.current = false; // Reset para permitir nuevo fetch
         setError(null);
         setIsLoading(true);
+        // Forzar re-render del useEffect
         window.location.reload();
     };
 

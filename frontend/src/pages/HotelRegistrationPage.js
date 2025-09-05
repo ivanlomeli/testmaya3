@@ -110,13 +110,15 @@ export default function HotelRegistrationPage() {
         return true;
     };
 
-    // Envío del formulario
+    // Envío del formulario CORREGIDO
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
         setError('');
 
         try {
+            console.log('Iniciando registro de usuario...');
+            
             // Paso 1: Registrar usuario
             const userResponse = await fetch('/api/auth/register', {
                 method: 'POST',
@@ -125,39 +127,75 @@ export default function HotelRegistrationPage() {
                 },
                 body: JSON.stringify({
                     ...ownerData,
-                    role: 'HotelOwner'
+                    role: 'hotel_owner' // CORREGIDO: usar hotel_owner
                 })
             });
 
+            // Verificar si la respuesta es JSON válido
+            const contentType = userResponse.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const textResponse = await userResponse.text();
+                console.error('Respuesta no JSON del servidor:', textResponse);
+                throw new Error('Error en la respuesta del servidor');
+            }
+
             const userData = await userResponse.json();
+            console.log('Respuesta del registro:', userData);
 
             if (!userResponse.ok) {
                 throw new Error(userData.error || 'Error al registrar usuario');
             }
 
+            // Verificar que el token existe
+            if (!userData.token) {
+                throw new Error('No se recibió token de autenticación');
+            }
+
+            console.log('Usuario registrado exitosamente, creando hotel...');
+
             // Paso 2: Crear hotel con el token obtenido
+            const hotelPayload = {
+                name: hotelData.name,
+                description: hotelData.description,
+                location: hotelData.location,
+                address: hotelData.address,
+                price: parseFloat(hotelData.price),
+                image_url: hotelData.image_url,
+                phone: hotelData.phone,
+                email: hotelData.email,
+                website: hotelData.website,
+                rooms_available: parseInt(hotelData.rooms_available) || 1
+            };
+
+            console.log('Enviando datos del hotel:', hotelPayload);
+
             const hotelResponse = await fetch('/api/hotels', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${userData.token}`
                 },
-                body: JSON.stringify({
-                    ...hotelData,
-                    price: parseFloat(hotelData.price),
-                    rooms_available: parseInt(hotelData.rooms_available) || 1,
-                    business_data: {
-                        amenities: hotelData.amenities,
-                        policies: hotelData.policies
-                    }
-                })
+                body: JSON.stringify(hotelPayload)
             });
 
+            // Verificar respuesta del hotel
+            const hotelContentType = hotelResponse.headers.get('content-type');
+            if (!hotelContentType || !hotelContentType.includes('application/json')) {
+                const textResponse = await hotelResponse.text();
+                console.error('Respuesta no JSON del servidor (hotel):', textResponse);
+                throw new Error('Error en la respuesta del servidor al crear hotel');
+            }
+
             const hotelResult = await hotelResponse.json();
+            console.log('Respuesta del hotel:', hotelResult);
 
             if (!hotelResponse.ok) {
                 throw new Error(hotelResult.error || 'Error al registrar hotel');
             }
+
+            // Guardar datos de autenticación
+            localStorage.setItem('auth_token', userData.token);
+            localStorage.setItem('user_data', JSON.stringify(userData.user));
 
             setSuccess('¡Registro exitoso! Tu hotel ha sido enviado para aprobación.');
             
@@ -167,6 +205,7 @@ export default function HotelRegistrationPage() {
             }, 3000);
 
         } catch (err) {
+            console.error('Error en registro:', err);
             setError(err.message);
         } finally {
             setIsSubmitting(false);

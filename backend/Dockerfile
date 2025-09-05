@@ -1,26 +1,38 @@
-# --- Stage 1: Build ---
-# Usa la última versión de Rust para compatibilidad
-FROM rust:latest AS builder
+# Build stage
+FROM rust:latest as builder
+WORKDIR /app
 
-# Crea un directorio de trabajo
-WORKDIR /usr/src/app
+# Copy Cargo files
+COPY Cargo.toml ./
 
-# Copia tu código fuente
-COPY . .
+# Create dummy main file
+RUN mkdir src && echo "fn main() {}" > src/main.rs
 
-# Compila el proyecto en modo release para optimizar el rendimiento
+# Build dependencies first
 RUN cargo build --release
 
-# --- Stage 2: Production ---
-# Usa una imagen base mínima para un contenedor ligero
-FROM debian:buster-slim
+# Remove dummy main
+RUN rm src/main.rs
 
-# Copia el binario compilado desde la etapa de construcción
-# IMPORTANTE: Cambia 'maya-digital-platform' si el binario de tu Cargo.toml tiene otro nombre
-COPY --from=builder /usr/src/app/target/release/maya-digital-platform /usr/local/bin/maya-digital-platform
+# Copy the source code
+COPY src ./src
 
-# Expone el puerto 8080 que definiste en tu .env
+# Copy SQLx offline data if exists
+COPY .sqlx ./.sqlx
+
+# Build the application
+RUN touch src/main.rs
+RUN cargo build --release
+
+# Runtime stage
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=builder /app/target/release/maya-digital-backend /app/
 EXPOSE 8080
-
-# Comando para ejecutar tu aplicación
-CMD ["maya-digital-platform"]
+CMD ["./maya-digital-backend"]
